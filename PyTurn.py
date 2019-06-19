@@ -41,21 +41,18 @@ email = config['Outlook']['email']
 password = config['Outlook']['password']
 username = config['Outlook']['username']
 
-from O365 import Account
-scopes = ['my_required_scopes']
-credentials = (email,password)
+from O365 import Account, Connection
 
-account = Account(credentials)
 
-if not account.is_authenticated:  # will check if there is a token and has not expired
-    # ask for a login
-    account.authenticate(scopes=scopes)
+credentials = (config['Azure']['ApplicationID'], config['Azure']['ClientSecret'])
+
+scopes = ['https://graph.microsoft.com/Mail.Send']
 
 
 
 
+con = Connection(credentials, scopes=scopes)
 
-account = Account(credentials)
 m = account.new_message()
 m.to.add(toaddr)
 m.subject = 'Testing!'
