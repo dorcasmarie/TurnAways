@@ -1,66 +1,67 @@
-import csv
+import email, smtplib, ssl, csv
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import configparser
+from datetime import date
+import pandas as pd
+
+
 config = configparser.ConfigParser()
-import time
-InputCsvFile  = 'TurnAways2019.csv'
+config.read('config.ini')
+InputCsvFile  = 'TurnAways102019.csv'
 OutputCsvFile = 'FlaggedItems.csv'
 flaggedNumBook = 5
 flaggedNumJournal = 10
-def processCsvTA(InputCsvFile, OutputCsvFile, flaggedNumBook):
-    with open(InputCsvFile) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        turn_flag = flaggedNumBook
-        for row in csv_reader:
-            if line_count == 0:
-                #print(f'Column names are {", ".join(row)}')
-                line_count += 1
-                myFile = open(OutputCsvFile, 'w')
-                with myFile:
-                    writer = csv.writer(myFile, delimiter=',')
-                    writer.writerow(row)
-            else:
-                line_count += 1
-                turn_aways = list()
-                for item in row[7]:
-                    if int(item) > turn_flag:
-                        turn_aways = turn_aways + row
-                        with open(OutputCsvFile, 'a') as fd:
-                            writer = csv.writer(fd, delimiter=',')
-                            writer.writerow(row)
 
-                    else:
-                        break
+#pandas
+
+def ejournal_turnaway(InputCsvFile, OutputCsvFile, flaggedNumJournal):
+    csv_reader = pd.read_csv(InputCsvFile, delimiter=',')
+    turn_aways = pd.DataFrame()
+    for index, row in csv_reader.iterrows():
+       if row.Turnaways > flaggedNumJournal:
+        turn_aways = turn_aways.append(row)
+    turn_aways.to_csv(OutputCsvFile, index=False)
+
+ejournal_turnaway('TurnAways2019.csv', 'ejournal_output.csv', flaggedNumJournal)
+
+#message part
 
 
 
-config.read('config.ini')
-fromaddr = config['Outlook']['email']
-toaddr = config['Outlook']['email']
-email = config['Outlook']['email']
-password = config['Outlook']['password']
-username = config['Outlook']['username']
+subject = 'E-journal Turnaway ' + str(date.today())
 
-from O365 import Account, Connection
+msg = MIMEMultipart()
+msg['From'] = config['Outlook']['email']
+msg['To'] = config['Outlook']['email']
+msg['Subject'] = subject
 
 
-credentials = (config['Azure']['ApplicationID'], config['Azure']['ClientSecret'])
+body = """Hello!
 
-scopes = ['https://graph.microsoft.com/Mail.Send']
+        This email is to inform you that the csv file with turnaways of ejournals is ready.
+        Please see the attached file.
+
+        Dorcas Washington """
+msg.attach(MIMEText(body, 'plain'))
+
+filename = 'ejournal_output.csv'
+attachment = open(filename, 'rb')
+
+part = MIMEBase('application', 'octet_stream')
+
+part.set_payload((attachment).read())
+
+encoders.encode_base64(part)
+part.add_header('Content-Disposition', "attachment; filename= " + filename)
+msg.attach(part)
+text = msg.as_string()
 
 
+connection = smtplib.SMTP('smtp.uc.edu', 25)
+connection.sendmail('washids@uc.edu', 'washids@uc.edu', text)
+connection.quit()
 
-
-con = Connection(credentials, scopes=scopes)
-
-m = account.new_message()
-m.to.add(toaddr)
-m.subject = 'Testing!'
-m.body = "George Best quote: I've stopped drinking, but only while I'm asleep."
-m.send()
-#monthly
-# note add to dashboard
-#journals 10
-#books 5
-#just email to Carissa & this go to collection dev eventually
 
